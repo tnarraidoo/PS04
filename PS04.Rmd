@@ -1,6 +1,6 @@
 ---
 title: "STAT/MATH 495: Problem Set 04"
-author: "WRITE YOUR NAME HERE"
+author: "Tasheena Narraidoo"
 date: "2017-10-03"
 output:
   html_document:
@@ -25,7 +25,9 @@ Please indicate who you collaborated with on this assignment:
 
 ```{r, warning=FALSE}
 library(tidyverse)
-credit <- read_csv("http://www-bcf.usc.edu/~gareth/ISL/Credit.csv") %>%
+credit <- read_csv("http://www-bcf.usc.edu/~gareth/ISL/Credit.csv")
+colnames(credit)[1] <- "X1"
+credit <- credit %>%
   select(-X1) %>%
   mutate(ID = 1:n()) %>% 
   select(ID, Balance, Income, Limit, Rating, Age, Cards, Education)
@@ -52,6 +54,7 @@ credit_train <- credit %>%
 credit_test <- credit %>% 
   anti_join(credit_train, by="ID")
 ```
+
 
 
 # RMSE vs number of coefficients
