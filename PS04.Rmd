@@ -24,7 +24,10 @@ Please indicate who you collaborated with on this assignment:
 # Load packages, data, model formulas
 
 ```{r, warning=FALSE}
+# load packages
 library(tidyverse)
+library(Metrics)
+# read data
 credit <- read_csv("http://www-bcf.usc.edu/~gareth/ISL/Credit.csv")
 colnames(credit)[1] <- "X1"
 credit <- credit %>%
@@ -55,11 +58,10 @@ credit_test <- credit %>%
   anti_join(credit_train, by="ID")
 ```
 
-
-
 # RMSE vs number of coefficients
 
 ```{r, echo=TRUE, warning=FALSE, message=FALSE}
+set.seed(79)
 # Placeholder vectors of length 7. For now, I've filled them with arbitrary 
 # values; you will fill these in
 RMSE_train <- runif(n=7)
@@ -68,6 +70,31 @@ RMSE_test <- runif(n=7)
 
 # Do your work here:
 
+# we are going to create a function that will return the RMSE for the data. 
+# model1 is the model we want to use.
+# set_pred is the data with which we are training the model. Here it's credit_train.
+# set_eval is the data on which we are making our predictions.
+# used rmse() from Metrics library : rmse(actual, predicted)
+
+rmse_fn <- function(model1, setPred, setEval){
+  m1 <- lm(model1, setPred)
+  pred1 <- predict(m1, setEval)
+  rmse1 <- rmse(setEval$Balance, pred1)
+  return(rmse1)
+}
+
+# we are going to save the models in a list so that we can loop through 
+# the list to calculate RMSE for each model.
+
+list1 <- c(model1_formula, model2_formula, model3_formula,
+           model4_formula, model5_formula, model6_formula,
+           model7_formula)
+
+# apply the rmse_fn on the train and test sets
+for(i in 1:7) {  
+  RMSE_train[i] <- rmse_fn(list1[[i]], credit_train, credit_train)
+  RMSE_test[i] <- rmse_fn(list1[[i]], credit_train, credit_test)
+  }
 
 # Save results in a data frame. Note this data frame is in wide format.
 results <- data_frame(
@@ -89,7 +116,8 @@ results <- results %>%
 
 ggplot(results, aes(x=num_coefficients, y=RMSE, col=type)) +
   geom_line() + 
-  labs(x="# of coefficients", y="RMSE", col="Data used to evaluate \nperformance of fitted model")
+  labs(x="# of coefficients", y="RMSE", col="Data used to evaluate \nperformance of fitted model") +
+  ggtitle("RMSE trends when training with 5% of our data")
 ```
 
 
@@ -97,7 +125,13 @@ ggplot(results, aes(x=num_coefficients, y=RMSE, col=type)) +
 
 Compare and contrast the two curves and hypothesize as to the root cause of any differences.
 
+Our dataset has 400 observations. Here, we took a sample of 20 observations to train our models and our test data has 280 observations. We see that RMSE values for both the train and test data keep falling until we have around 3 coefficients. This would suggest that, for models with coefficients below 3, adding another coefficient makes prediction better. The graph suggests that the model with 3 coefficient would be the best model to make our prediction. 
 
+After 3 coefficients, we see that the rmse for the test data starts to increase while that for the training data keeps falling. This would suggest that adding more coefficients to the model after 3 does not benefit our model. This suggests a case of overfitting of our model. Since the training set has been used in both instances to train the model, more coefficients would decrease the RMSE for the training set while it will increase that for the test set.
+
+Throughout the x-axis, we see that the RMSE value for the test set is greater than that of the training set. Again, this would be due to the fact that we used the training set to train our regression model, hence we are capturing the noise as we increase the number of coefficients of the model but we are performing poorly on the test set.
+
+However, we should keep in mind that only 5% of the data was used to train the data, which might not be representative of the overall data, and thus resulting in overfitting. 
 
 # Bonus
 
@@ -105,6 +139,54 @@ Repeat the whole process, but let `credit_train` be a random sample of size 380
 from `credit` instead of 20. Now compare and contrast this graph with the
 one above and hypothesize as to the root cause of any differences.
 
-```{r, echo=FALSE}
+We chose a random sample of size 380 from `credit` for our training set. And we carried out the same procedure as above with a test set of 20 observations.
 
+```{r}
+set.seed(79)
+new_credit_train <- credit %>% 
+  sample_n(380)
+new_credit_test <- credit %>% 
+  anti_join(new_credit_train, by="ID")
 ```
+
+```{r, echo=FALSE}
+RMSE_train2 <- runif(n=7)
+RMSE_test2 <- runif(n=7)
+
+# calculate rmse for each obseravtion fof both the train and test set.
+for(i in 1:7) {  
+  RMSE_train2[i] <- rmse_fn(list1[[i]], new_credit_train, new_credit_train)
+  RMSE_test2[i] <- rmse_fn(list1[[i]], new_credit_train, new_credit_test)
+}
+
+# Save results in a data frame. Note this data frame is in wide format.
+results2 <- data_frame(
+  num_coefficients = 1:7,
+  RMSE_train2,
+  RMSE_test2
+) 
+
+# Some cleaning of results
+results2 <- results2 %>% 
+  # More intuitive names:
+  rename(
+    `Training data` = RMSE_train2,
+    `Test data` = RMSE_test2
+  ) %>% 
+  # Convert results data frame to "tidy" data format i.e. long format, so that we
+  # can ggplot it
+  gather(type, RMSE, -num_coefficients)
+
+ggplot(results2, aes(x=num_coefficients, y=RMSE, col=type)) +
+  geom_line() + 
+  labs(x="# of coefficients", y="RMSE", col="Data used to evaluate \nperformance of fitted model") +
+  ggtitle(" RMSE trends when training with 95% of our data")
+```
+
+Here, we have used 380 observations for our training set but only 20 observations for the test set. Our dataset has a total of 400 observations.
+
+From the graph, we see that the RMSE for both the training and test sets are falling quite steeply until we have a model with 3 coefficients. After 3 coefficients however, it would seem that the RMSE stabilizes. This would suggest that below 3 coefficients, adding an additional coefficient would improve our model but after 3 coefficients, adding another coefficient would not bring much to our model. So three coefficients captures a lot of variability of our data.
+
+Like the first graph, for models with less that three coefficients, the RMSE for the training data is less than that of the test set or at least equal to the RMSE of the test data. 
+
+However, unlike the first graph, for models with more than 3 coefficients, the RMSE of the test data is less than that of the training set even though the difference does not seem much. Most importantly, they follow the same trend throughout the x-axis values which is good. However, this could be due to the fact that our training set has 380 observations and our test set only 20. Our test set is only 5 % of our data which might not show how well (or not!) our model performs.
